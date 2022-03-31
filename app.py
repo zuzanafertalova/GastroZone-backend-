@@ -129,6 +129,7 @@ def create_company(current_user):
     db.session.add(new_company)
     db.session.commit()
     return jsonify({'message': 'new company created'})
+#sdadasdasd
 
 
 @app.route('/companies', methods=['GET'])
