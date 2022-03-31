@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from dotenv import load_dotenv
 
+
 import uuid
 import jwt
 import datetime
@@ -45,6 +46,11 @@ class Reviews(db.Model):
 class Types(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255))
+
+class Types(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255))
+
 
 class Companies(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -86,6 +92,8 @@ def jwt_token_required(f):
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = Users.query.filter_by(public_id=data['public_id']).first()
+            if not current_user:
+                current_user = Companies.query.filter_by(public_id=data['public_id']).first()
         except:
             return jsonify({'message': 'Invalid Auth token!'})
 
@@ -176,13 +184,47 @@ def delete_company(current_user):
 
 
 @app.route('/employee', methods=['POST'])
-def create_employee():
+@jwt_token_required
+def create_employee(current_user):
+
+    if type(current_user) is Companies:
+        data = request.get_json()
+        new_employee = Employee(employee_id=data['user_id'], company_id=current_user.id)
+
+        db.session.add(new_employee)
+        db.session.commit()
+
+        return jsonify({'message': 'new employee created'})
+
+    return make_response(f'Only company can delete employee!', 403)
+
+
+@app.route('/employee/<employee_id>', methods=['DELETE'])
+@jwt_token_required
+def delete_employee(current_user, employee_id):
     data = request.get_json()
     new_employee = Employee(name=data['name'], description=data['description'], vat_number=data['vat_number'],
                             profile_picture=data['profile_picture'], employee_id=data['user_id'])
     db.session.add(new_employee)
     db.session.commit()
     return jsonify({'message': 'new company created'})
+
+    print(type(current_user))
+
+    # only company can delete employee
+    if type(current_user) is Companies:
+        print(f'Logged company {current_user.name}')
+        employee = Employee.query.filter_by(id=employee_id).first()
+
+        if not employee:
+            return make_response(f'Employee id {employee_id} was not found!', 503)
+
+        db.session.delete(employee)
+        db.session.commit()
+
+        return jsonify({'message': f'Employee "{employee.id}" deleted!'})
+
+    return make_response(f'Only company can delete employee!', 403)
 
 
 @app.route('/')
