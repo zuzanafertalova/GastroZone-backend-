@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from flask import Flask, jsonify, make_response, request
-from werkzeug.security import generate_password_hash,check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from dotenv import load_dotenv
@@ -76,6 +76,7 @@ def jwt_token_required(f):
             return jsonify({'message': 'Invalid Auth token!'})
 
         return f(current_user, *args, **kwargs)
+
     return decorator
 
 
@@ -110,8 +111,45 @@ def login_user():
     return make_response('User could not be verified!', 401, {'Authentication': 'Login required'})
 
 
+@app.route('/company', methods=['POST'])
+@jwt_token_required
+def create_company(current_user):
+    data = request.get_json()
+
+    new_company = Companies(name=data['name'], description=data['description'], vat_number=data['vat_number'],
+                          profile_picture=data['profile_picture'], user_id=current_user.id)
+    db.session.add(new_company)
+    db.session.commit()
+    return jsonify({'message': 'new company created'})
+
+
+@app.route('/companies', methods=['GET'])
+@jwt_token_required
+def get_companies(current_user):
+    companies = Companies.query.filter_by(user_id=current_user.id).all()
+    output = []
+    for company in companies:
+        company_data = {'id': company.id, 'name': company.name, 'description': company.description, 'vat_number': company.vat_number,
+                     'profile_picture': company.profile_picture}
+        output.append(company_data)
+
+    return jsonify({'list_of_companies': output})
+
+
+@app.route('/companies/<company_id>', methods=['DELETE'])
+@jwt_token_required
+def delete_company(current_user, company_id):
+    company = Companies.query.filter_by(id=company_id, user_id=current_user.id).first()
+    if not company:
+        return jsonify({'message': 'book does not exist'})
+
+    db.session.delete(company)
+    db.session.commit()
+    return jsonify({'message': 'Company deleted'})
+
+
 @app.route('/')
-def hello_world():  # put application's code here
+def hello_world():
     print(app.config['SQLALCHEMY_DATABASE_URI'])
     print(app.config['SECRET_KEY'])
     return 'Hello World!'
