@@ -42,15 +42,20 @@ class Reviews(db.Model):
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
 
+class Types(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255))
 
 class Companies(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    public_id = db.Column(db.String(255))
     name = db.Column(db.String(255))
     email = db.Column(db.String(255))
     password = db.Column(db.String(255))
     description = db.Column(db.Text)
     vat_number = db.Column(db.String(10))
     profile_picture = db.Column(db.String(255))
+    type_id = db.Column(db.Integer, db.ForeignKey('types.id'), nullable=False)
 
 
 class Employee(db.Model):
@@ -105,10 +110,20 @@ def register_user():
 @app.route('/login', methods=['POST'])
 def login_user():
     auth = request.authorization
+    print(auth)
     if not auth or not auth.username or not auth.password:
         return make_response('User could not be verified!', 401, {'Authentication': 'Login required'})
 
-    user = Users.query.filter_by(username=auth.username).first()
+    user = Users.query.filter_by(email=auth.username).first()
+
+    if not user:
+        user = Companies.query.filter_by(email=auth.username).first()
+
+    print(auth.password)
+    print(user.password)
+
+    result = check_password_hash(user.password, auth.password)
+    print(result)
 
     if check_password_hash(user.password, auth.password):
         token = jwt.encode(
@@ -121,20 +136,21 @@ def login_user():
 
 
 @app.route('/company', methods=['POST'])
-def create_company(current_user):
+def create_company():
     data = request.get_json()
 
-    new_company = Companies(name=data['name'], description=data['description'], vat_number=data['vat_number'],
-                            profile_picture=data['profile_picture'], user_id=current_user.id)
+    hashed_password = generate_password_hash(data['password'], method='sha256')
+
+    new_company = Companies(name=data['name'], public_id=str(uuid.uuid4()), email=data['email'], description=data['description'], vat_number=data['vat_number'],
+                            password=hashed_password, type_id=data['type_id'])
     db.session.add(new_company)
     db.session.commit()
-    return jsonify({'message': 'new company created'})
-#sdadasdasd
+    return jsonify({'message': f'new company ({data["name"]}) created'})
 
 
 @app.route('/companies', methods=['GET'])
 @jwt_token_required
-def get_companies():
+def get_companies(current_user):
     companies = Companies.query.filter_by(user_id=current_user.id).all()
     output = []
     for company in companies:
@@ -148,8 +164,9 @@ def get_companies():
 
 @app.route('/companies/<company_id>', methods=['DELETE'])
 @jwt_token_required
-def delete_company():
-    company = Companies.query.filter_by(id=company_id, user_id=current_user.id).first()
+def delete_company(current_user):
+    data = request.get_json()
+    company = Companies.query.filter_by(id=data['company_id'], user_id=current_user.id.first())
     if not company:
         return jsonify({'message': 'book does not exist'})
 
@@ -162,7 +179,7 @@ def delete_company():
 def create_employee():
     data = request.get_json()
     new_employee = Employee(name=data['name'], description=data['description'], vat_number=data['vat_number'],
-                            profile_picture=data['profile_picture'], employee_id=data[])
+                            profile_picture=data['profile_picture'], employee_id=data['user_id'])
     db.session.add(new_employee)
     db.session.commit()
     return jsonify({'message': 'new company created'})
