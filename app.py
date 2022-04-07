@@ -47,10 +47,6 @@ class Types(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255))
 
-class Types(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-
 
 class Companies(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -143,7 +139,7 @@ def login_user():
     return make_response('User could not be verified!', 401, {'Authentication': 'Login required'})
 
 
-@app.route('/company', methods=['POST'])
+@app.route('/create_company', methods=['POST'])
 def create_company():
     data = request.get_json()
 
@@ -156,23 +152,28 @@ def create_company():
     return jsonify({'message': f'new company ({data["name"]}) created'})
 
 
-@app.route('/companies', methods=['GET'])
+@app.route('/companies/filter-by/type/<type_id>', methods=['GET'])
 @jwt_token_required
-def get_companies(current_user):
-    companies = Companies.query.filter_by(user_id=current_user.id).all()
-    output = []
-    for company in companies:
-        company_data = {'id': company.id, 'name': company.name, 'description': company.description,
-                        'vat_number': company.vat_number,
-                        'profile_picture': company.profile_picture}
-        output.append(company_data)
+def filter_companies(current_user, type_id):
+    companies = Companies.query.filter_by(type_id=type_id).all()
 
-    return jsonify({'list_of_companies': output})
+    response = []
+
+    for company in companies:
+        c_type = Types.query.filter_by(id=type_id).first()
+        o = {
+            "company_name": company.name,
+            "type": c_type.name
+        }
+        response.append(o)
+        print(company.name)
+
+    return jsonify({'list_of_companies': response})
 
 
 @app.route('/companies/<company_id>', methods=['DELETE'])
 @jwt_token_required
-def delete_company(current_user):
+def delete_company(current_user, company_id):
     data = request.get_json()
     company = Companies.query.filter_by(id=data['company_id'], user_id=current_user.id.first())
     if not company:
@@ -183,12 +184,13 @@ def delete_company(current_user):
     return jsonify({'message': 'Company deleted'})
 
 
-@app.route('/employee', methods=['POST'])
+@app.route('/create_employee', methods=['POST'])
 @jwt_token_required
 def create_employee(current_user):
 
     if type(current_user) is Companies:
         data = request.get_json()
+        print(data)
         new_employee = Employee(employee_id=data['user_id'], company_id=current_user.id)
 
         db.session.add(new_employee)
