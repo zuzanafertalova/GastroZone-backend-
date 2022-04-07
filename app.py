@@ -6,7 +6,6 @@ from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from dotenv import load_dotenv
 
-
 import uuid
 import jwt
 import datetime
@@ -42,6 +41,7 @@ class Reviews(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     creator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+
 
 class Types(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -145,7 +145,8 @@ def create_company():
 
     hashed_password = generate_password_hash(data['password'], method='sha256')
 
-    new_company = Companies(name=data['name'], public_id=str(uuid.uuid4()), email=data['email'], description=data['description'], vat_number=data['vat_number'],
+    new_company = Companies(name=data['name'], public_id=str(uuid.uuid4()), email=data['email'],
+                            description=data['description'], vat_number=data['vat_number'],
                             password=hashed_password, type_id=data['type_id'])
     db.session.add(new_company)
     db.session.commit()
@@ -171,13 +172,13 @@ def filter_companies(current_user, type_id):
     return jsonify({'list_of_companies': response})
 
 
-@app.route('/companies/<company_id>', methods=['DELETE'])
+@app.route('/delete_company/<company_id>', methods=['DELETE'])
 @jwt_token_required
 def delete_company(current_user, company_id):
     data = request.get_json()
     company = Companies.query.filter_by(id=data['company_id'], user_id=current_user.id.first())
     if not company:
-        return jsonify({'message': 'book does not exist'})
+        return jsonify({'message': 'company does no exist'})
 
     db.session.delete(company)
     db.session.commit()
@@ -187,7 +188,6 @@ def delete_company(current_user, company_id):
 @app.route('/create_employee', methods=['POST'])
 @jwt_token_required
 def create_employee(current_user):
-
     if type(current_user) is Companies:
         data = request.get_json()
         print(data)
@@ -201,7 +201,7 @@ def create_employee(current_user):
     return make_response(f'Only company can delete employee!', 403)
 
 
-@app.route('/employee/<employee_id>', methods=['DELETE'])
+@app.route('/delete_employee/<employee_id>', methods=['DELETE'])
 @jwt_token_required
 def delete_employee(current_user, employee_id):
     data = request.get_json()
@@ -209,7 +209,7 @@ def delete_employee(current_user, employee_id):
                             profile_picture=data['profile_picture'], employee_id=data['user_id'])
     db.session.add(new_employee)
     db.session.commit()
-    return jsonify({'message': 'new company created'})
+    ##return jsonify({'message': 'new company created'})
 
     print(type(current_user))
 
@@ -227,6 +227,15 @@ def delete_employee(current_user, employee_id):
         return jsonify({'message': f'Employee "{employee.id}" deleted!'})
 
     return make_response(f'Only company can delete employee!', 403)
+
+
+@app.route("/profile_picture", methods=['POST'])
+@jwt_token_required
+def new_post(current_user):
+    data = request.get_json()
+    current_user.profile_picture = data
+    db.session.commit()
+    return jsonify({'message': f' Profile picture changed'})
 
 
 @app.route('/')
