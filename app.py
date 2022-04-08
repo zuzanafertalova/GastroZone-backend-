@@ -2,6 +2,7 @@
 
 from flask import Flask, jsonify, make_response, request
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 from dotenv import load_dotenv
@@ -10,6 +11,8 @@ import uuid
 import jwt
 import datetime
 import os
+
+import hashlib
 
 # load env vars from .env file
 load_dotenv()
@@ -24,6 +27,10 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{DB_NAME}:{DB_PASS}@{DB_HOST}/{DB_NAME}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+app.config['UPLOAD_FOLDER'] = './uploads/'
+
+
+ALLOWED_FILE_EXTENSIONS = { 'jpg', 'jpeg', 'png', 'gif', 'mkv', 'mp4', 'heic', 'pdf' }
 
 db = SQLAlchemy(app)
 
@@ -71,6 +78,18 @@ class Follows(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
+
+
+class Uploads(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    original_file_name = db.Column(db.String(255))
+    hashed_file_name = db.Columen(db.String(255))
+
+
+
+def validate_file_extension(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_FILE_EXTENSIONS
 
 
 def jwt_token_required(f):
@@ -229,14 +248,18 @@ def delete_employee(current_user, employee_id):
     return make_response(f'Only company can delete employee!', 403)
 
 
-@app.route("/profile_picture", methods=['POST'])
+@app.route("/upload", methods=['POST'])
 @jwt_token_required
-def new_post(current_user):
-    data = request.get_json()
-    current_user.profile_picture = data
-    db.session.commit()
-    return jsonify({'message': f' Profile picture changed'})
+def upload(current_user):
+    print(request.files)
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and validate_file_extension(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
+            return make_response(f'File {file.filename} uploaded successfully!', 200)
+    return make_response('Failed to upload file', 503)
 
 @app.route('/')
 def hello_world():
