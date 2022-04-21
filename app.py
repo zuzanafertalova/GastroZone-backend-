@@ -29,8 +29,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{DB_NAME}:{DB_PASS}@{D
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 app.config['UPLOAD_FOLDER'] = './uploads/'
 
-
-ALLOWED_FILE_EXTENSIONS = { 'jpg', 'jpeg', 'png', 'gif', 'mkv', 'mp4', 'heic', 'pdf' }
+ALLOWED_FILE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'mkv', 'mp4', 'heic', 'pdf'}
 
 db = SQLAlchemy(app)
 
@@ -85,7 +84,6 @@ class Uploads(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     original_file_name = db.Column(db.String(255))
     hashed_file_name = db.Column(db.String(255))
-
 
 
 def validate_file_extension(filename):
@@ -228,7 +226,7 @@ def delete_employee(current_user, employee_id):
                             profile_picture=data['profile_picture'], employee_id=data['user_id'])
     db.session.add(new_employee)
     db.session.commit()
-    ##return jsonify({'message': 'new company created'})
+    # return jsonify({'message': 'new company created'})
 
     print(type(current_user))
 
@@ -260,6 +258,7 @@ def upload(current_user):
 
             return make_response(f'File {file.filename} uploaded successfully!', 200)
     return make_response('Failed to upload file', 503)
+
 
 @app.route('/')
 def hello_world():
