@@ -136,11 +136,12 @@ def login_user():
     print(auth)
     if not auth or not auth.username or not auth.password:
         return make_response('User could not be verified!', 401, {'Authentication': 'Login required'})
-
+    user_type = "user"
     user = Users.query.filter_by(email=auth.username).first()
 
     if not user:
         user = Companies.query.filter_by(email=auth.username).first()
+        user_type = "company"
 
     print(auth.password)
     print(user.password)
@@ -153,7 +154,7 @@ def login_user():
             {'public_id': user.public_id, 'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=45)},
             app.config['SECRET_KEY'], "HS256")
 
-        return jsonify({'token': token})
+        return jsonify({'token': token, 'user_type': user_type})
 
     return make_response('User could not be verified!', 401, {'Authentication': 'Login required'})
 
