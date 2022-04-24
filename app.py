@@ -119,7 +119,9 @@ def jwt_token_required(f):
 def register_user():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
-
+    check = Users.query.filter_by(email=data['email']).all()
+    if(check):
+        return jsonify({'message': f'User {data["email"]} already exist!'})
     user = Users(public_id=str(uuid.uuid4()), username=data['username'], password=hashed_password, email=data['email'])
 
     db.session.add(user)
@@ -159,12 +161,15 @@ def login_user():
 @app.route('/create_company', methods=['POST'])
 def create_company():
     data = request.get_json()
-
+    check = Companies.query.filter_by(email=data['email']).all()
+    if (check):
+        return jsonify({'message': f'Company {data["email"]} already exist!'})
     hashed_password = generate_password_hash(data['password'], method='sha256')
 
     new_company = Companies(name=data['name'], public_id=str(uuid.uuid4()), email=data['email'],
                             description=data['description'], vat_number=data['vat_number'],
                             password=hashed_password, type_id=data['type_id'])
+
     db.session.add(new_company)
     db.session.commit()
     return jsonify({'message': f'new company ({data["name"]}) created'})
