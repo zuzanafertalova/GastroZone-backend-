@@ -101,6 +101,7 @@ def jwt_token_required(f):
             token = request.headers[token_header]
 
         if not token:
+            print("Token not valid")
             return jsonify({'message': 'Valid Auth token is required!'})
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
@@ -120,7 +121,7 @@ def register_user():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'], method='sha256')
     check = Users.query.filter_by(email=data['email']).all()
-    if(check):
+    if (check):
         return jsonify({'message': f'User {data["email"]} already exist!'})
     user = Users(public_id=str(uuid.uuid4()), username=data['username'], password=hashed_password, email=data['email'])
 
@@ -167,8 +168,8 @@ def create_company():
         return jsonify({'message': f'Company {data["email"]} already exist!'})
     hashed_password = generate_password_hash(data['password'], method='sha256')
 
-    new_company = Companies(name=data['name'], public_id=str(uuid.uuid4()), email=data['email'],
-                            description=data['description'], vat_number=data['vat_number'],
+    new_company = Companies(name=data['email'], public_id=str(uuid.uuid4()), email=data['email'],
+                            vat_number=data['vat_number'],
                             password=hashed_password, type_id=data['type_id'])
 
     db.session.add(new_company)
@@ -264,6 +265,54 @@ def upload(current_user):
 
             return make_response(f'File {file.filename} uploaded successfully!', 200)
     return make_response('Failed to upload file', 503)
+
+
+@app.route("/v1/api/user", methods=["GET"])
+@jwt_token_required
+def get_user_data(current_user):
+    print(current_user)
+    user = None
+
+    response = {}
+
+    if type(current_user) is Companies:
+        print(f'Logged company {current_user.name}')
+        user = Companies.query.filter_by(id=current_user.id).first()
+
+        company_type = Types.query.filter_by(id=user.type_id).first().name
+
+        response = {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "is_company": True,
+            "type": company_type
+        }
+
+    elif type(current_user) is Users:
+        print(f'Logged user: {current_user.email}')
+        user = Users.query.filter_by(id=current_user.id).first()
+        response = {
+            "id": user.id,
+            "name": user.username,
+            "email": user.email,
+            "is_company": False
+        }
+    return jsonify(response)
+
+
+@app.route("/change", methods=["PUT"])
+@jwt_token_required
+def change_name(current_user):
+    data = request.get_json()
+    response = {}
+    for i in data:
+        setattr(current_user, i, data[i])
+        print(i)
+    db.session.commit()
+    response = {'message': "User name has been changed"}
+    db.session.commit()
+    return jsonify(response)
 
 
 @app.route('/')
