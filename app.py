@@ -38,7 +38,7 @@ class Users(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.String(255))
     password = db.Column(db.String(255))
-    username = db.Column(db.String(255))
+    name = db.Column(db.String(255))
     email = db.Column(db.String(255))
     profile_picture = db.Column(db.String(255))
 
@@ -123,7 +123,7 @@ def register_user():
     check = Users.query.filter_by(email=data['email']).all()
     if (check):
         return jsonify({'message': f'User {data["email"]} already exist!'})
-    user = Users(public_id=str(uuid.uuid4()), username=data['username'], password=hashed_password, email=data['email'])
+    user = Users(public_id=str(uuid.uuid4()), name=data['username'], password=hashed_password, email=data['email'])
 
     db.session.add(user)
     db.session.commit()
@@ -294,7 +294,7 @@ def get_user_data(current_user):
         user = Users.query.filter_by(id=current_user.id).first()
         response = {
             "id": user.id,
-            "name": user.username,
+            "name": user.name,
             "email": user.email,
             "is_company": False
         }
@@ -309,7 +309,7 @@ def change_name(current_user):
     for i in data:
         setattr(current_user, i, data[i])
         print(i)
-    db.session.commit()
+
     response = {'message': "User name has been changed"}
     db.session.commit()
     return jsonify(response)
